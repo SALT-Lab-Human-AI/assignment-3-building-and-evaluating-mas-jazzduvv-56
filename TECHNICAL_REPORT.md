@@ -100,6 +100,11 @@ During query processing, the interface displays a live status indicator that upd
    - "🔍 Researcher: Gathering sources..."
    - "✍️ Writer: Synthesizing response..."
    - "⚖️ Critic: Verifying quality..."
+
+<p align="center">
+  <img src="https://github.com/SALT-Lab-Human-AI/assignment-3-building-and-evaluating-mas-jazzduvv-56/blob/2ce65f953d71bd762d5f72826af70b8a77519994/images/I1.png"/>
+</p>
+
 3. **Completion Summary**: After processing completes, displays all agents with checkmarks:
    - ✅ Plan created
    - ✅ Sources gathered
@@ -284,6 +289,10 @@ Overall Score = (Relevance × 0.25) + (Evidence Quality × 0.25) +
 | Safety Compliance | 1.00 | 15% | 0.15 |
 | Clarity | 0.72 | 15% | 0.108 |
 | **Total** | | | **0.768** |
+
+<p align="center">
+  <img src="https://github.com/SALT-Lab-Human-AI/assignment-3-building-and-evaluating-mas-jazzduvv-56/blob/2ce65f953d71bd762d5f72826af70b8a77519994/images/I2.png"/>
+</p>
 
 **Performance Across 5 Queries**:
 
