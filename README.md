@@ -5,14 +5,7 @@ A production-ready multi-agent research assistant specializing in AI-generated s
 
 ## 🎥 Demo Video
 
-**[Watch the system demonstration here]** _(Video link will be added)_
-
-The demo showcases:
-- Complete end-to-end workflow from query to evaluated response
-- Real-time agent coordination (Planner → Researcher → Writer → Critic)
-- Safety guardrail activation with violation handling
-- LLM-as-a-Judge evaluation with multi-criteria scoring
-- Streamlit UI with live agent status indicators
+**[Watch the system demonstration here]** _(https://drive.google.com/file/d/1yuFxWedbvkrRrgWkObFg3MS3Udvy8k-T/view?usp=sharing)_
 
 ## 📋 Overview
 
@@ -378,6 +371,11 @@ The interface will open in your browser at `http://localhost:8501`.
 **Expected Interface Features:**
 - Query input text area
 - Real-time agent status display (shows which agent is active)
+
+<p align="center">
+  <img src="https://github.com/SALT-Lab-Human-AI/assignment-3-building-and-evaluating-mas-jazzduvv-56/blob/2ce65f953d71bd762d5f72826af70b8a77519994/images/I1.png"/>
+</p>
+
 - Response display with inline citations
 - Expandable agent traces section (step-by-step workflow)
 - Citations in APA format
@@ -401,6 +399,11 @@ python main.py --mode evaluate
   - Factual Accuracy (20%)
   - Safety Compliance (15%)
   - Clarity (15%)
+ 
+### Evaluation Result on CLI
+<p align="center">
+  <img src="https://github.com/SALT-Lab-Human-AI/assignment-3-building-and-evaluating-mas-jazzduvv-56/blob/2ce65f953d71bd762d5f72826af70b8a77519994/images/I2.png"/>
+</p>
 
 **Evaluation Results Location:**
 ```
