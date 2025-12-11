@@ -168,14 +168,35 @@ class SystemEvaluator:
             sources=response_data.get("metadata", {}).get("sources", []),
             ground_truth=ground_truth
         )
+        
+        # Clean metadata to ensure JSON serializable
+        clean_metadata = self._clean_metadata(response_data.get("metadata", {}))
+        
+        # Ensure response is a string
+        response = response_data.get("response", "")
+        if not isinstance(response, str):
+            response = str(response)
 
         return {
             "query": query,
-            "response": response_data.get("response", ""),
+            "response": response,
             "evaluation": evaluation,
-            "metadata": response_data.get("metadata", {}),
-            "ground_truth": ground_truth
+            "metadata": clean_metadata,
+            "ground_truth": ground_truth if isinstance(ground_truth, (str, type(None))) else str(ground_truth)
         }
+    
+    def _clean_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Clean metadata to ensure it's JSON serializable."""
+        cleaned = {}
+        for key, value in metadata.items():
+            try:
+                # Try to serialize to JSON - if it fails, convert to string
+                json.dumps(value)
+                cleaned[key] = value
+            except (TypeError, ValueError):
+                # Not JSON serializable, convert to string
+                cleaned[key] = str(value) if value is not None else None
+        return cleaned
 
     def _load_test_queries(self, path: str) -> List[Dict[str, Any]]:
         """
@@ -263,7 +284,12 @@ class SystemEvaluator:
                 "query": worst_result.get("query", "") if worst_result else "",
                 "score": worst_result.get("evaluation", {}).get("overall_score", 0.0) if worst_result else 0.0
             } if worst_result else None,
-            "detailed_results": self.results
+            "detailed_results": self.results,
+            # Add fields expected by main.py
+            "total_queries": total_queries,
+            "overall_average": avg_overall,
+            "criterion_averages": avg_criterion_scores,
+            "output_file": None  # Will be set after saving
         }
 
         return report
@@ -283,11 +309,20 @@ class SystemEvaluator:
         # Save detailed results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         results_file = output_dir / f"evaluation_{timestamp}.json"
+        
+        # Update output_file in report
+        report["output_file"] = str(results_file)
 
-        with open(results_file, 'w') as f:
-            json.dump(report, f, indent=2)
-
-        self.logger.info(f"Evaluation results saved to {results_file}")
+        try:
+            with open(results_file, 'w') as f:
+                json.dump(report, f, indent=2)
+            self.logger.info(f"Evaluation results saved to {results_file}")
+        except TypeError as e:
+            # If JSON serialization fails, try with default handler
+            self.logger.warning(f"JSON serialization error, using string conversion: {e}")
+            with open(results_file, 'w') as f:
+                json.dump(report, f, indent=2, default=str)
+            self.logger.info(f"Evaluation results saved to {results_file} (with string conversion)")
 
         # Save summary
         summary_file = output_dir / f"evaluation_summary_{timestamp}.txt"

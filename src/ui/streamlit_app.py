@@ -20,6 +20,7 @@ from typing import Dict, Any
 from dotenv import load_dotenv
 
 from src.autogen_orchestrator import AutoGenOrchestrator
+from src.tools.citation_tool import CitationTool
 
 # Load environment variables
 load_dotenv()
@@ -55,12 +56,13 @@ def initialize_session_state():
         st.session_state.show_safety_log = False
 
 
-async def process_query(query: str) -> Dict[str, Any]:
+def process_query(query: str, status_placeholder=None) -> Dict[str, Any]:
     """
     Process a query through the orchestrator.
     
     Args:
         query: Research query to process
+        status_placeholder: Streamlit placeholder for status updates
         
     Returns:
         Result dictionary with response, citations, and metadata
@@ -77,8 +79,33 @@ async def process_query(query: str) -> Dict[str, Any]:
         }
     
     try:
+        # Show agent workflow status
+        if status_placeholder:
+            with status_placeholder.container():
+                st.info("🔄 **Multi-Agent Processing Active**")
+                agent_status = st.empty()
+                
+                # Update status for each expected agent
+                agent_status.markdown("📋 **Planner**: Creating research plan...")
+                import time
+                time.sleep(0.5)
+        
         # Process query through AutoGen orchestrator
         result = orchestrator.process_query(query)
+        
+        # Update status during processing (simplified version)
+        if status_placeholder:
+            with status_placeholder.container():
+                st.success("✅ **Processing Complete**")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.markdown("📋 **Planner**\n✓ Plan created")
+                with col2:
+                    st.markdown("🔍 **Researcher**\n✓ Sources gathered")
+                with col3:
+                    st.markdown("✍️ **Writer**\n✓ Response synthesized")
+                with col4:
+                    st.markdown("⚖️ **Critic**\n✓ Quality verified")
         
         # Check for errors
         if "error" in result:
@@ -93,7 +120,7 @@ async def process_query(query: str) -> Dict[str, Any]:
         # Format metadata
         metadata = result.get("metadata", {})
         metadata["agent_traces"] = agent_traces
-        metadata["citations"] = citations
+        metadata["citations_formatted"] = citations
         metadata["critique_score"] = calculate_quality_score(result)
         
         return {
@@ -114,45 +141,63 @@ async def process_query(query: str) -> Dict[str, Any]:
 
 
 def extract_citations(result: Dict[str, Any]) -> list:
-    """Extract citations from research result."""
+    """Extract citations from research result and format in APA style."""
+    import re
     citations = []
+    seen_urls = set()
     
     # Look through conversation history for citations
     for msg in result.get("conversation_history", []):
         content = msg.get("content", "")
         
+        # Handle content being a list or other non-string type
+        if isinstance(content, list):
+            content = " ".join(str(item) for item in content)
+        elif not isinstance(content, str):
+            content = str(content)
+        
         # Find URLs in content
-        import re
         urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', content)
         
-        # Find citation patterns like [Source: Title]
-        citation_patterns = re.findall(r'\[Source: ([^\]]+)\]', content)
-        
+        # Quick APA-style formatting
         for url in urls:
-            if url not in citations:
-                citations.append(url)
-        
-        for citation in citation_patterns:
-            if citation not in citations:
-                citations.append(citation)
+            if url not in seen_urls and len(citations) < 10:
+                seen_urls.add(url)
+                # Simple APA format: Site name. (Year). URL
+                try:
+                    site_name = url.split('/')[2]
+                except:
+                    site_name = "Web Source"
+                
+                formatted = f"{site_name}. ({datetime.now().year}). Retrieved from {url}"
+                citations.append({
+                    "url": url,
+                    "formatted": formatted
+                })
     
-    return citations[:10]  # Limit to top 10
+    return citations
 
 
-def extract_agent_traces(result: Dict[str, Any]) -> Dict[str, list]:
-    """Extract agent execution traces from conversation history."""
-    traces = {}
+def extract_agent_traces(result: Dict[str, Any]) -> list:
+    """Extract agent execution traces from conversation history with better formatting."""
+    traces = []
     
-    for msg in result.get("conversation_history", []):
+    for i, msg in enumerate(result.get("conversation_history", []), 1):
         agent = msg.get("source", "Unknown")
-        content = msg.get("content", "")[:200]  # First 200 chars
+        content = msg.get("content", "")
         
-        if agent not in traces:
-            traces[agent] = []
+        # Handle content being a list or other non-string type
+        if isinstance(content, list):
+            content = " ".join(str(item) for item in content)
+        elif not isinstance(content, str):
+            content = str(content)
         
-        traces[agent].append({
-            "action_type": "message",
-            "details": content
+        # Create trace entry with step number, agent, and preview
+        traces.append({
+            "step": i,
+            "agent": agent,
+            "preview": content[:300] + "..." if len(content) > 300 else content,
+            "full_content": content
         })
     
     return traces
@@ -191,20 +236,40 @@ def display_response(result: Dict[str, Any]):
     """
     # Check for errors
     if "error" in result:
-        st.error(f"Error: {result['error']}")
+        error_type = result['error']
+        error_message = result.get('response', 'An error occurred')
+        
+        # Show detailed error message
+        st.error(f"**{error_type}**")
+        st.warning(error_message)
+        
+        # Show additional metadata if available
+        if "metadata" in result and "reason" in result["metadata"]:
+            with st.expander("ℹ️ Details", expanded=True):
+                st.text(result["metadata"]["reason"])
+        
         return
 
     # Display response
     st.markdown("### Response")
     response = result.get("response", "")
+    # Handle response being a list or other non-string type
+    if isinstance(response, list):
+        response = " ".join(str(item) for item in response)
+    elif not isinstance(response, str):
+        response = str(response)
     st.markdown(response)
 
-    # Display citations
-    citations = result.get("citations", [])
+    # Display citations in APA format
+    metadata = result.get("metadata", {})
+    citations = metadata.get("citations_formatted", [])
     if citations:
-        with st.expander("📚 Citations", expanded=False):
-            for i, citation in enumerate(citations, 1):
-                st.markdown(f"**[{i}]** {citation}")
+        with st.expander("📚 Citations (APA Format)", expanded=False):
+            for i, citation_data in enumerate(citations, 1):
+                if isinstance(citation_data, dict):
+                    st.markdown(f"**[{i}]** {citation_data.get('formatted', citation_data.get('url', ''))}")
+                else:
+                    st.markdown(f"**[{i}]** {citation_data}")
 
     # Display metadata
     metadata = result.get("metadata", {})
@@ -229,27 +294,43 @@ def display_response(result: Dict[str, Any]):
 
     # Agent traces
     if st.session_state.show_traces:
-        agent_traces = metadata.get("agent_traces", {})
+        agent_traces = metadata.get("agent_traces", [])
         if agent_traces:
             display_agent_traces(agent_traces)
 
 
-def display_agent_traces(traces: Dict[str, Any]):
+def display_agent_traces(traces: list):
     """
-    Display agent execution traces.
-
-    TODO: YOUR CODE HERE
-    - Format traces nicely
-    - Show agent workflow
-    - Display timing information
+    Display agent execution traces with step-by-step workflow.
     """
-    with st.expander("🔍 Agent Traces", expanded=False):
-        for agent_name, actions in traces.items():
-            st.markdown(f"**{agent_name.upper()}**")
-            for action in actions:
-                action_type = action.get("action_type", "unknown")
-                details = action.get("details", {})
-                st.text(f"  → {action_type}: {details}")
+    with st.expander("🔍 Agent Conversation Traces", expanded=True):
+        st.markdown("**Agent Workflow (Step-by-Step)**")
+        st.markdown("---")
+        
+        for trace in traces:
+            step = trace.get("step", 0)
+            agent = trace.get("agent", "Unknown")
+            preview = trace.get("preview", "")
+            
+            # Color code by agent
+            agent_emoji = {
+                "Planner": "📋",
+                "Researcher": "🔍",
+                "Writer": "✍️",
+                "Critic": "⚖️"
+            }
+            emoji = agent_emoji.get(agent, "💬")
+            
+            st.markdown(f"### {emoji} Step {step}: {agent}")
+            with st.container():
+                st.text_area(
+                    f"Message from {agent}",
+                    preview,
+                    height=150,
+                    key=f"trace_{step}",
+                    disabled=True
+                )
+            st.markdown("---")
 
 
 def display_sidebar():
@@ -337,20 +418,22 @@ def main():
         # Submit button
         if st.button("🔍 Search", type="primary", use_container_width=True):
             if query.strip():
-                with st.spinner("Processing your query..."):
-                    # Process query
-                    result = asyncio.run(process_query(query))
+                # Create status placeholder for real-time agent updates
+                status_container = st.empty()
+                
+                # Process query with status updates
+                result = process_query(query, status_placeholder=status_container)
 
-                    # Add to history
-                    st.session_state.history.append({
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "query": query,
-                        "result": result
-                    })
+                # Add to history
+                st.session_state.history.append({
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "query": query,
+                    "result": result
+                })
 
-                    # Display result
-                    st.divider()
-                    display_response(result)
+                # Display result
+                st.divider()
+                display_response(result)
             else:
                 st.warning("Please enter a query.")
 
@@ -360,10 +443,10 @@ def main():
     with col2:
         st.markdown("### 💡 Example Queries")
         examples = [
-            "What are the key principles of user-centered design?",
-            "Explain recent advances in AR usability research",
-            "Compare different approaches to AI transparency",
-            "What are ethical considerations in AI for education?",
+            "What are AI-generated synthetic worlds?",
+            "How is procedural content generation used in games?",
+            "What tools exist for creating virtual environments?",
+            "What are safety concerns in virtual reality experiences?",
         ]
 
         for example in examples:

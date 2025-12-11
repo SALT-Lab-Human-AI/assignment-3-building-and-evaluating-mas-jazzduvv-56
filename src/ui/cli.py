@@ -15,8 +15,10 @@ from typing import Dict, Any
 import yaml
 import logging
 from dotenv import load_dotenv
+from datetime import datetime
 
 from src.autogen_orchestrator import AutoGenOrchestrator
+from src.tools.citation_tool import CitationTool
 
 # Load environment variables
 load_dotenv()
@@ -184,16 +186,24 @@ class CLI:
 
         # Display response
         response = result.get("response", "")
+        # Handle response being a list or other non-string type
+        if isinstance(response, list):
+            response = " ".join(str(item) for item in response)
+        elif not isinstance(response, str):
+            response = str(response)
         print(f"\n{response}\n")
 
-        # Extract and display citations from conversation
+        # Extract and display citations from conversation in APA format
         citations = self._extract_citations(result)
         if citations:
             print("\n" + "-" * 70)
-            print("📚 CITATIONS")
+            print("📚 CITATIONS (APA Format)")
             print("-" * 70)
-            for i, citation in enumerate(citations, 1):
-                print(f"[{i}] {citation}")
+            for i, citation_data in enumerate(citations, 1):
+                if isinstance(citation_data, dict):
+                    print(f"[{i}] {citation_data.get('formatted', citation_data.get('url', ''))}")
+                else:
+                    print(f"[{i}] {citation_data}")
 
         # Display metadata
         metadata = result.get("metadata", {})
@@ -212,21 +222,39 @@ class CLI:
         print("=" * 70 + "\n")
     
     def _extract_citations(self, result: Dict[str, Any]) -> list:
-        """Extract citations/URLs from conversation history."""
+        """Extract citations/URLs from conversation history and format in APA style."""
+        import re
         citations = []
+        seen_urls = set()
         
         for msg in result.get("conversation_history", []):
             content = msg.get("content", "")
             
+            # Handle content being a list or other non-string type
+            if isinstance(content, list):
+                content = " ".join(str(item) for item in content)
+            elif not isinstance(content, str):
+                content = str(content)
+            
             # Find URLs in content
-            import re
             urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', content)
             
             for url in urls:
-                if url not in citations:
-                    citations.append(url)
+                if url not in seen_urls and len(citations) < 10:
+                    seen_urls.add(url)
+                    # Simple APA format: Site name. (Year). URL
+                    try:
+                        site_name = url.split('/')[2]
+                    except:
+                        site_name = "Web Source"
+                    
+                    formatted = f"{site_name}. ({datetime.now().year}). Retrieved from {url}"
+                    citations.append({
+                        "url": url,
+                        "formatted": formatted
+                    })
         
-        return citations[:10]  # Limit to top 10
+        return citations
 
     def _should_show_traces(self) -> bool:
         """Check if agent traces should be displayed."""
@@ -245,6 +273,12 @@ class CLI:
         for i, msg in enumerate(conversation_history, 1):
             agent = msg.get("source", "Unknown")
             content = msg.get("content", "")
+            
+            # Handle content being a list or other non-string type
+            if isinstance(content, list):
+                content = " ".join(str(item) for item in content)
+            elif not isinstance(content, str):
+                content = str(content)
             
             # Truncate long content
             preview = content[:150] + "..." if len(content) > 150 else content

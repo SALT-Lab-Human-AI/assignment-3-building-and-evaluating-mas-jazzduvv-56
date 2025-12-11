@@ -12,7 +12,7 @@ import os
 from typing import Dict, Any, List, Optional
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import RoundRobinGroupChat
-from autogen_agentchat.conditions import TextMentionTermination
+from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_core.tools import FunctionTool
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_core.models import ModelFamily
@@ -166,21 +166,29 @@ You have access to tools for web search and paper search. When conducting resear
         system_message = default_system_message
 
     # Wrap tools in FunctionTool
-    web_search_tool = FunctionTool(
-        web_search,
-        description="Search the web for articles, blog posts, and general information. Returns formatted search results with titles, URLs, and snippets."
-    )
+    tools = []
     
-    paper_search_tool = FunctionTool(
-        paper_search,
-        description="Search academic papers on Semantic Scholar. Returns papers with authors, abstracts, citation counts, and URLs. Use year_from parameter to filter recent papers."
-    )
+    # Add web search tool if enabled
+    if config.get("tools", {}).get("web_search", {}).get("enabled", True):
+        web_search_tool = FunctionTool(
+            web_search,
+            description="Search the web for articles, blog posts, and general information. Returns formatted search results with titles, URLs, and snippets."
+        )
+        tools.append(web_search_tool)
+    
+    # Add paper search tool if enabled
+    if config.get("tools", {}).get("paper_search", {}).get("enabled", True):
+        paper_search_tool = FunctionTool(
+            paper_search,
+            description="Search academic papers on Semantic Scholar. Returns papers with authors, abstracts, citation counts, and URLs. Use year_from parameter to filter recent papers."
+        )
+        tools.append(paper_search_tool)
 
     # Create the researcher with tool access
     researcher = AssistantAgent(
         name="Researcher",
         model_client=model_client,
-        tools=[web_search_tool, paper_search_tool],
+        tools=tools,
         description="Gathers evidence from web and academic sources using search tools",
         system_message=system_message,
     )
@@ -298,8 +306,11 @@ def create_research_team(config: Dict[str, Any]) -> RoundRobinGroupChat:
     writer = create_writer_agent(config, model_client)
     critic = create_critic_agent(config, model_client)
     
-    # Create termination condition
-    termination = TextMentionTermination("TERMINATE")
+    # Create termination condition: stop on TERMINATE keyword OR after 12 messages
+    # (12 messages = 3 full rounds with 4 agents)
+    text_termination = TextMentionTermination("TERMINATE")
+    max_msg_termination = MaxMessageTermination(12)
+    termination = text_termination | max_msg_termination
     
     # Create team with round-robin ordering
     team = RoundRobinGroupChat(

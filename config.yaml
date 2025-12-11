@@ -3,9 +3,9 @@
 
 system:
   name: "Multi-Agent Research Assistant"
-  topic: "HCI Research"  # Change this to your chosen topic
-  max_iterations: 10
-  timeout_seconds: 300
+  topic: "AI-Generated Synthetic Realities for Human-AI Co-Creation"  # Change this to your chosen topic
+  max_iterations: 2
+  timeout_seconds: 60
 
 agents:
   planner:
@@ -13,79 +13,95 @@ agents:
     enabled: true
     # Custom system prompt (optional - leave empty to use default)
     # If provided, ensure it includes the handoff signal: "PLAN COMPLETE"
-    system_prompt: ""  # Empty = use default prompt
-    # Example custom prompt:
-    # system_prompt: |
-    #   You are an expert research planner specializing in HCI topics.
-    #   Break down queries into specific, actionable research steps.
-    #   Focus on recent publications (last 5 years) and seminal works.
-    #   After creating the plan, say "PLAN COMPLETE".
+    system_prompt: |
+      You are a research planner specializing in AI-generated synthetic realities and human-AI co-creation (2023-2026).
+      Focus on: generative environments, multi-agent simulation systems, real-time world generation, ethics of synthetic experiences, and human-in-the-loop evaluation.
+      Prioritize recent papers from SIGGRAPH, CHI, NeurIPS, CVPR, and emerging industry demos (Unreal Engine 5, Unity ML-Agents, NVIDIA Omniverse).
+      Break down queries into technical system design, generative models, user experience evaluation, and ethical considerations.
+      After creating the plan, say "PLAN COMPLETE".
 
   researcher:
     role: "Evidence Gatherer"
     enabled: true
     # Custom system prompt (optional - leave empty to use default)
     # If provided, ensure it mentions tools and includes: "RESEARCH COMPLETE"
-    system_prompt: ""  # Empty = use default prompt
-    max_sources: 10
-    # Example custom prompt:
-    # system_prompt: |
-    #   You are a research specialist in HCI and UX design.
-    #   Use web_search() and paper_search() tools to gather evidence.
-    #   Prioritize peer-reviewed papers and authoritative sources.
-    #   After collecting 8-10 sources, say "RESEARCH COMPLETE".
+    system_prompt: |
+      You are an evidence gatherer for AI-generated synthetic realities and generative world systems.
+      Use web_search() for cutting-edge demos, industry tools (Unreal Engine 5 MetaHuman, Unity ML-Agents, NVIDIA Omniverse), and recent product launches.
+      Use paper_search() for academic papers on: procedural content generation, neural rendering, reinforcement learning in simulation, generative adversarial networks, diffusion models, human-AI collaboration frameworks, and XR user studies.
+      Focus on sources from 2022-2025 for technical advances and 2020+ for foundational concepts.
+      Collect 3-4 high-quality sources including both technical systems papers and human-centered evaluation studies.
+      After collecting sources, say "RESEARCH COMPLETE".
+    max_sources: 2
 
   writer:
     role: "Report Synthesizer"
     enabled: true
     # Custom system prompt (optional - leave empty to use default)
     # If provided, ensure it includes: "DRAFT COMPLETE"
-    system_prompt: ""  # Empty = use default prompt
-    # Example custom prompt:
-    # system_prompt: |
-    #   You are an academic writer specializing in HCI research.
-    #   Synthesize findings with proper APA citations.
-    #   Write in a clear, engaging style accessible to students.
-    #   After completing the draft, say "DRAFT COMPLETE".
+    system_prompt: |
+      You are an AI researcher writing about synthetic realities and generative systems for both technical and design audiences.
+      Synthesize technical findings (system architectures, generative models, rendering pipelines) with human-centered insights (user experience, co-creation workflows, safety considerations).
+      Structure your response with clear sections: technical capabilities, design frameworks, evaluation methods, and ethical considerations.
+      Include concrete examples from research demos and deployed systems.
+      Use APA citations for academic sources and clearly attribute industry tools and demos.
+      Balance technical depth with accessibility - explain complex concepts with analogies when helpful.
+      Address both opportunities and risks of synthetic reality systems.
+      After completing the draft, say "DRAFT COMPLETE".
 
   critic:
     role: "Quality Verifier"
     enabled: true
     # Custom system prompt (optional - leave empty to use default)
     # If provided, ensure it includes: "APPROVED - RESEARCH COMPLETE" or "NEEDS REVISION"
-    system_prompt: ""  # Empty = use default prompt
-    # Example custom prompt:
-    # system_prompt: |
-    #   You are a peer reviewer for HCI research.
-    #   Evaluate for academic rigor, source quality, and clarity.
-    #   Be thorough but constructive in your feedback.
-    #   Say "APPROVED - RESEARCH COMPLETE" or "NEEDS REVISION".
+    system_prompt: |
+      You are a peer reviewer evaluating research on AI-generated synthetic realities with expertise in both technical systems and human-computer interaction.
+      Evaluate the response for:
+      1. Technical accuracy - Are system architectures, model types, and capabilities described correctly?
+      2. Feasibility assessment - Are claims about current vs. future capabilities realistic?
+      3. Human-centered perspective - Does it address user safety, experience quality, and ethical implications?
+      4. Evaluation rigor - Are appropriate metrics and study designs discussed?
+      5. Source quality - Are recent (2022+) and authoritative sources cited?
+      6. Balanced perspective - Are both opportunities and risks/limitations covered?
+      Check for overhype or unsubstantiated claims about generative AI capabilities.
+      Ensure ethical considerations (consent, synthetic content detection, psychological safety) are addressed.
+      If the response meets high standards, say "TERMINATE" to complete the research.
+      If revisions are needed, provide specific, actionable feedback but be reasonable - one good draft is sufficient.
 
 models:
-  # Default model for agents (Groq)
+  # Default model for agents
   default:
-    provider: "vllm"
-    name: "openai/gpt-oss-20b"
+    #provider: "vllm"
+    #name: "openai/gpt-oss-20b"
+    # Using OpenAI for better function calling support
+    provider: "openai"
+    name: "gpt-4o-mini"
     temperature: 0.7
-    max_tokens: 2048
+    max_tokens: 150
 
   # Judge model for evaluation
   judge:
-    provider: "vllm"
-    name: "openai/gpt-oss-20b"
+    #provider: "vllm"
+    #name: "openai/gpt-oss-20b"
+    # Using OpenAI for consistency with agents
+    provider: "openai"
+    name: "gpt-4o-mini"
     temperature: 0.3
-    max_tokens: 1024
+    max_tokens: 400
+    # Alternative: Use Groq for judge (faster but less reliable function calling)
+    #provider: "groq"
+    #name: "llama-3.3-70b-versatile"
 
 tools:
   web_search:
     enabled: true
     provider: "tavily"  # or "brave"
-    max_results: 5
+    max_results: 2
 
   paper_search:
     enabled: true
     provider: "semantic_scholar"
-    max_results: 10
+    max_results: 2
 
   citation_extraction:
     enabled: true
@@ -109,7 +125,7 @@ safety:
 
 evaluation:
   enabled: true
-  num_test_queries: 10
+  num_test_queries: 5
 
   # Judge criteria
   criteria:
