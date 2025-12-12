@@ -75,9 +75,7 @@ class PaperSearchTool:
 
         try:
             from semanticscholar import SemanticScholar
-            
-            # Initialize Semantic Scholar client
-            sch = SemanticScholar(api_key=self.api_key)
+            import concurrent.futures
             
             # Define fields to retrieve
             fields = kwargs.get("fields", [
@@ -85,12 +83,15 @@ class PaperSearchTool:
                 "citationCount", "url", "venue", "openAccessPdf"
             ])
             
-            # Perform search
-            results = sch.search_paper(
-                query, 
-                limit=self.max_results,
-                fields=fields
-            )
+            # Run synchronous Semantic Scholar API in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def _search_sync():
+                sch = SemanticScholar(api_key=self.api_key)
+                return sch.search_paper(query, limit=self.max_results, fields=fields)
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                results = await loop.run_in_executor(executor, _search_sync)
             
             # Parse and filter results
             papers = self._parse_results(results, year_from, year_to, min_citations)
@@ -117,21 +118,27 @@ class PaperSearchTool:
         """
         try:
             from semanticscholar import SemanticScholar
+            import concurrent.futures
             
-            sch = SemanticScholar(api_key=self.api_key)
-            paper = sch.get_paper(paper_id)
+            loop = asyncio.get_event_loop()
             
-            return {
-                "paper_id": paper.paperId,
-                "title": paper.title,
-                "authors": [{"name": a.name} for a in paper.authors] if paper.authors else [],
-                "year": paper.year,
-                "abstract": paper.abstract,
-                "citation_count": paper.citationCount,
-                "url": paper.url,
-                "venue": paper.venue,
-                "pdf_url": paper.openAccessPdf.get("url") if paper.openAccessPdf else None,
-            }
+            def _get_paper_sync():
+                sch = SemanticScholar(api_key=self.api_key)
+                paper = sch.get_paper(paper_id)
+                return {
+                    "paper_id": paper.paperId,
+                    "title": paper.title,
+                    "authors": [{"name": a.name} for a in paper.authors] if paper.authors else [],
+                    "year": paper.year,
+                    "abstract": paper.abstract,
+                    "citation_count": paper.citationCount,
+                    "url": paper.url,
+                    "venue": paper.venue,
+                    "pdf_url": paper.openAccessPdf.get("url") if paper.openAccessPdf else None,
+                }
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                return await loop.run_in_executor(executor, _get_paper_sync)
         except Exception as e:
             self.logger.error(f"Error getting paper details: {e}")
             return {}
@@ -149,19 +156,25 @@ class PaperSearchTool:
         """
         try:
             from semanticscholar import SemanticScholar
+            import concurrent.futures
             
-            sch = SemanticScholar(api_key=self.api_key)
-            paper = sch.get_paper(paper_id)
-            citations = paper.citations[:limit] if paper.citations else []
+            loop = asyncio.get_event_loop()
             
-            return [
-                {
-                    "paper_id": c.paperId,
-                    "title": c.title,
-                    "year": c.year,
-                }
-                for c in citations
-            ]
+            def _get_citations_sync():
+                sch = SemanticScholar(api_key=self.api_key)
+                paper = sch.get_paper(paper_id)
+                citations = paper.citations[:limit] if paper.citations else []
+                return [
+                    {
+                        "paper_id": c.paperId,
+                        "title": c.title,
+                        "year": c.year,
+                    }
+                    for c in citations
+                ]
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                return await loop.run_in_executor(executor, _get_citations_sync)
         except Exception as e:
             self.logger.error(f"Error getting citations: {e}")
             return []
@@ -179,19 +192,25 @@ class PaperSearchTool:
         """
         try:
             from semanticscholar import SemanticScholar
+            import concurrent.futures
             
-            sch = SemanticScholar(api_key=self.api_key)
-            paper = sch.get_paper(paper_id)
-            references = paper.references[:limit] if paper.references else []
+            loop = asyncio.get_event_loop()
             
-            return [
-                {
-                    "paper_id": r.paperId,
-                    "title": r.title,
-                    "year": r.year,
-                }
-                for r in references
-            ]
+            def _get_references_sync():
+                sch = SemanticScholar(api_key=self.api_key)
+                paper = sch.get_paper(paper_id)
+                references = paper.references[:limit] if paper.references else []
+                return [
+                    {
+                        "paper_id": r.paperId,
+                        "title": r.title,
+                        "year": r.year,
+                    }
+                    for r in references
+                ]
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                return await loop.run_in_executor(executor, _get_references_sync)
         except Exception as e:
             self.logger.error(f"Error getting references: {e}")
             return []

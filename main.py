@@ -16,6 +16,20 @@ from pathlib import Path
 
 def run_cli():
     """Run CLI interface."""
+    # Remove main.py's --mode argument before calling CLI
+    import sys
+    filtered_args = []
+    skip_next = False
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == '--mode':
+            skip_next = True  # Skip the next argument (the mode value)
+            continue
+        filtered_args.append(arg)
+    sys.argv = [sys.argv[0]] + filtered_args
+    
     from src.ui.cli import main as cli_main
     cli_main()
 
@@ -28,10 +42,11 @@ def run_web():
 
 
 async def run_evaluation():
-    """Run system evaluation."""
+    """Run system evaluation with LLM-as-a-Judge."""
     import yaml
     from dotenv import load_dotenv
     from src.autogen_orchestrator import AutoGenOrchestrator
+    from src.evaluation.evaluator import SystemEvaluator
     
     # Load environment variables
     load_dotenv()
@@ -44,28 +59,33 @@ async def run_evaluation():
     print("Initializing AutoGen orchestrator...")
     orchestrator = AutoGenOrchestrator(config)
     
-    # For now, run a simple test query
-    # TODO: Integrate with SystemEvaluator for full evaluation
+    # Initialize SystemEvaluator
+    print("Initializing SystemEvaluator with LLM-as-a-Judge...")
+    evaluator = SystemEvaluator(config, orchestrator=orchestrator)
+    
+    # Run full evaluation
     print("\n" + "=" * 70)
-    print("RUNNING TEST QUERY")
+    print("RUNNING FULL SYSTEM EVALUATION")
     print("=" * 70)
     
-    test_query = "What are the key principles of accessible user interface design?"
-    print(f"\nQuery: {test_query}\n")
-    
-    result = orchestrator.process_query(test_query)
+    results = await evaluator.evaluate_system("data/example_queries.json")
     
     print("\n" + "=" * 70)
-    print("RESULTS")
+    print("EVALUATION COMPLETE")
     print("=" * 70)
-    print(f"\nResponse:\n{result.get('response', 'No response generated')}")
-    print(f"\nMetadata:")
-    print(f"  - Messages: {result.get('metadata', {}).get('num_messages', 0)}")
-    print(f"  - Sources: {result.get('metadata', {}).get('num_sources', 0)}")
+    print(f"\nTotal Queries: {results.get('total_queries', 0)}")
+    print(f"Overall Average Score: {results.get('overall_average', 0):.2f}")
+    print(f"\nResults saved to: {results.get('output_file', 'outputs/')}")
+    
+    # Print summary statistics
+    if 'criterion_averages' in results:
+        print("\n" + "=" * 70)
+        print("CRITERION AVERAGES")
+        print("=" * 70)
+        for criterion, score in results['criterion_averages'].items():
+            print(f"  {criterion}: {score:.2f}")
     
     print("\n" + "=" * 70)
-    print("Note: Full evaluation with SystemEvaluator can be implemented")
-    print("=" * 70)
 
 
 def run_autogen():

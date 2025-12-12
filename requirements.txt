@@ -35,5 +35,4 @@ black
 # Pre-commit hooks for security and code quality
 pre-commit
 detect-secrets
-gitleaks
 bandit

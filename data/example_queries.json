@@ -1,173 +1,182 @@
 [
   {
     "id": 1,
-    "query": "What are the key principles of explainable AI for novice users?",
-    "category": "explainable_ai",
+    "query": "What are the key technical approaches for generating realistic synthetic environments in real-time?",
+    "category": "synthetic_reality_generation",
     "expected_topics": [
-      "transparency",
-      "interpretability",
-      "user understanding",
-      "trust"
+      "procedural content generation",
+      "neural rendering",
+      "diffusion models",
+      "real-time optimization",
+      "generative adversarial networks"
     ],
-    "ground_truth": "Explainable AI for novices should focus on transparency, simple visualizations, interactive explanations, and building user trust through understandable model behavior.",
+    "ground_truth": null,
     "expected_sources": [
-      "academic papers on XAI",
-      "HCI research on AI transparency",
-      "user studies"
+      "SIGGRAPH papers on real-time rendering",
+      "NeurIPS papers on generative models",
+      "Unity/Unreal Engine documentation"
     ]
   },
   {
     "id": 2,
-    "query": "How has AR usability evolved in the past 5 years?",
-    "category": "ar_usability",
+    "query": "How do humans and AI systems collaborate in the co-creation of virtual worlds?",
+    "category": "human_ai_cocreation",
     "expected_topics": [
-      "interaction techniques",
-      "user experience",
-      "hardware improvements",
-      "application domains"
+      "human-in-the-loop design",
+      "interactive content generation",
+      "user agency",
+      "creative collaboration",
+      "AI-assisted authoring"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "recent AR research papers",
-      "CHI conference proceedings",
-      "industry reports"
+      "CHI papers on AI collaboration",
+      "HCI research on co-creation",
+      "creative AI tools studies"
     ]
   },
   {
     "id": 3,
-    "query": "What are ethical considerations in using AI for education?",
-    "category": "ai_ethics",
+    "query": "What ethical concerns arise from AI-generated synthetic realities and how can they be addressed?",
+    "category": "ethics_synthetic_reality",
     "expected_topics": [
-      "bias",
-      "privacy",
-      "accessibility",
-      "transparency",
-      "student autonomy"
+      "deepfakes and authenticity",
+      "informed consent",
+      "psychological impact",
+      "reality perception",
+      "responsible AI design"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "ethics papers",
-      "educational technology research",
-      "policy documents"
+      "ethics papers on synthetic media",
+      "XR ethics research",
+      "policy documents on AI safety"
     ]
   },
   {
     "id": 4,
-    "query": "Compare different approaches to measuring user experience in mobile applications",
-    "category": "ux_measurement",
+    "query": "How can procedural generation techniques be combined with machine learning for world building?",
+    "category": "hybrid_generation",
     "expected_topics": [
-      "questionnaires",
-      "analytics",
-      "user testing",
-      "physiological measures"
+      "procedural content generation",
+      "reinforcement learning",
+      "neural networks for terrain",
+      "controllable generation",
+      "optimization algorithms"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "UX research papers",
-      "methodological papers",
-      "case studies"
+      "game development research",
+      "CVPR papers on 3D generation",
+      "Unreal Engine/Unity ML papers"
     ]
   },
   {
     "id": 5,
-    "query": "What are the latest developments in conversational AI for healthcare?",
-    "category": "conversational_ai",
+    "query": "What evaluation frameworks exist for measuring user experience in AI-generated virtual environments?",
+    "category": "evaluation_frameworks",
     "expected_topics": [
-      "chatbots",
-      "patient interaction",
-      "clinical decision support",
-      "privacy concerns"
+      "presence and immersion metrics",
+      "user engagement",
+      "quality assessment",
+      "usability testing",
+      "subjective evaluation"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "medical informatics papers",
-      "healthcare AI research",
-      "clinical studies"
+      "VR/XR evaluation studies",
+      "CHI papers on immersive experiences",
+      "IEEE VR conference papers"
     ]
   },
   {
     "id": 6,
-    "query": "How do design patterns for accessibility differ across web and mobile platforms?",
-    "category": "accessibility",
+    "query": "How does NVIDIA Omniverse enable collaborative creation of synthetic environments?",
+    "category": "industry_tools",
     "expected_topics": [
-      "screen readers",
-      "touch interfaces",
-      "WCAG guidelines",
-      "responsive design"
+      "real-time collaboration",
+      "USD framework",
+      "AI integration",
+      "multi-user workflows",
+      "simulation capabilities"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "accessibility guidelines",
-      "comparative studies",
-      "design pattern libraries"
+      "NVIDIA Omniverse documentation",
+      "industry demos and reviews",
+      "technical blog posts"
     ]
   },
   {
     "id": 7,
-    "query": "What are best practices for visualizing uncertainty in data displays?",
-    "category": "data_visualization",
+    "query": "What role do diffusion models play in generating synthetic 3D environments and assets?",
+    "category": "generative_models",
     "expected_topics": [
-      "visual encoding",
-      "uncertainty representation",
-      "user comprehension",
-      "design guidelines"
+      "text-to-3D generation",
+      "latent diffusion",
+      "3D asset synthesis",
+      "texture generation",
+      "scene composition"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "visualization research",
-      "perceptual studies",
-      "design guidelines"
+      "NeurIPS papers on diffusion models",
+      "CVPR 3D generation papers",
+      "SIGGRAPH Asia papers"
     ]
   },
   {
     "id": 8,
-    "query": "How can voice interfaces be designed for elderly users?",
-    "category": "voice_interfaces",
+    "query": "How can multi-agent AI systems simulate realistic behaviors in virtual environments?",
+    "category": "agent_simulation",
     "expected_topics": [
-      "age-related challenges",
-      "speech recognition",
-      "error handling",
-      "user preferences"
+      "multi-agent reinforcement learning",
+      "behavioral modeling",
+      "emergent behaviors",
+      "crowd simulation",
+      "social dynamics"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "aging and technology research",
-      "voice UI papers",
-      "user studies with elderly"
+      "Unity ML-Agents documentation",
+      "reinforcement learning papers",
+      "agent-based modeling research"
     ]
   },
   {
     "id": 9,
-    "query": "What are emerging trends in AI-driven prototyping tools?",
-    "category": "ai_prototyping",
+    "query": "What are the current limitations and challenges in real-time neural rendering for synthetic worlds?",
+    "category": "technical_challenges",
     "expected_topics": [
-      "generative design",
-      "automation",
-      "designer collaboration",
-      "tool capabilities"
+      "computational cost",
+      "latency issues",
+      "quality-performance tradeoff",
+      "hardware constraints",
+      "optimization techniques"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "design tools research",
-      "AI in design papers",
-      "industry tools and reviews"
+      "SIGGRAPH real-time rendering papers",
+      "GPU optimization studies",
+      "neural rendering surveys"
     ]
   },
   {
     "id": 10,
-    "query": "How do cultural factors influence mobile app design?",
-    "category": "cross_cultural_design",
+    "query": "How do Unreal Engine 5 MetaHuman and similar tools democratize synthetic character creation for human-AI co-creation?",
+    "category": "character_creation",
     "expected_topics": [
-      "localization",
-      "cultural dimensions",
-      "user preferences",
-      "design adaptations"
+      "accessible creation tools",
+      "realistic digital humans",
+      "customization workflows",
+      "AI-assisted design",
+      "democratization of content creation"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "cross-cultural HCI research",
-      "cultural studies",
-      "international design case studies"
+      "Unreal Engine documentation",
+      "MetaHuman technical articles",
+      "game development case studies"
     ]
   }
 ]

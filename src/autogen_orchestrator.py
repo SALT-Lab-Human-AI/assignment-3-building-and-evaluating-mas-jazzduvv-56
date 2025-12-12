@@ -18,6 +18,7 @@ from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.messages import TextMessage
 
 from src.agents.autogen_agents import create_research_team
+from src.guardrails.safety_manager import SafetyManager
 
 
 class AutoGenOrchestrator:
@@ -39,16 +40,19 @@ class AutoGenOrchestrator:
         self.config = config
         self.logger = logging.getLogger("autogen_orchestrator")
         
-        # Create the research team
-        self.logger.info("Creating research team...")
-        self.team = create_research_team(config)
+        # Initialize safety manager
+        self.safety_manager = SafetyManager(config)
         
-        self.logger.info("Research team created successfully")
+        # Don't create team here - will create fresh for each query
+        # to avoid event loop conflicts
+        self.team = None
+        
+        self.logger.info("AutoGen orchestrator initialized")
         
         # Workflow trace for debugging and UI display
         self.workflow_trace: List[Dict[str, Any]] = []
 
-    def process_query(self, query: str, max_rounds: int = 20) -> Dict[str, Any]:
+    def process_query(self, query: str, max_rounds: int = 10) -> Dict[str, Any]:
         """
         Process a research query through the multi-agent system.
 
@@ -65,19 +69,51 @@ class AutoGenOrchestrator:
         """
         self.logger.info(f"Processing query: {query}")
         
+        # Check input safety
+        safety_check = self.safety_manager.check_input_safety(query)
+        if not safety_check.get("safe", True):
+            violations = safety_check.get("violations", [])
+            violation_msg = "; ".join([v.get("reason", "Unknown") for v in violations])
+            self.logger.warning(f"Query blocked by safety guardrails: {violation_msg}")
+            return {
+                "query": query,
+                "error": "Safety violation",
+                "response": f"This query violates safety policies: {violation_msg}",
+                "conversation_history": [],
+                "metadata": {"safety_blocked": True, "reason": violation_msg}
+            }
+        
         try:
-            # Run the async query processing
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If we're already in an async context, create a new loop
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    result = pool.submit(
-                        asyncio.run, 
-                        self._process_query_async(query, max_rounds)
-                    ).result()
-            else:
-                result = loop.run_until_complete(self._process_query_async(query, max_rounds))
+            # Always use asyncio.run() in a new thread to avoid event loop conflicts
+            # This ensures AutoGen's internal queues are created in the correct loop
+            import nest_asyncio
+            import concurrent.futures
+            
+            def run_async_in_new_loop():
+                # Apply nest_asyncio to allow nested loops
+                nest_asyncio.apply()
+                # Create new event loop for this thread
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(self._process_query_async(query, max_rounds))
+                finally:
+                    new_loop.close()
+            
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                result = pool.submit(run_async_in_new_loop).result()
+            
+            # Check output safety
+            response_text = result.get("response", "")
+            safety_check = self.safety_manager.check_output_safety(response_text)
+            if not safety_check.get("safe", True):
+                violations = safety_check.get("violations", [])
+                violation_msg = "; ".join([v.get("reason", "Unknown") for v in violations])
+                sanitized = safety_check.get("sanitized_output", "Response blocked due to safety violations.")
+                self.logger.warning(f"Response sanitized by safety guardrails: {violation_msg}")
+                result["response"] = sanitized
+                result["metadata"]["safety_sanitized"] = True
+                result["metadata"]["safety_violations"] = violations
             
             self.logger.info("Query processing complete")
             return result
@@ -92,7 +128,7 @@ class AutoGenOrchestrator:
                 "metadata": {"error": True}
             }
     
-    async def _process_query_async(self, query: str, max_rounds: int = 20) -> Dict[str, Any]:
+    async def _process_query_async(self, query: str, max_rounds: int = 10) -> Dict[str, Any]:
         """
         Async implementation of query processing.
         
@@ -103,6 +139,10 @@ class AutoGenOrchestrator:
         Returns:
             Dictionary containing results
         """
+        # Create a fresh team for this query to avoid event loop conflicts
+        self.logger.info("Creating fresh research team for this query...")
+        team = create_research_team(self.config)
+        
         # Create task message
         task_message = f"""Research Query: {query}
 
@@ -113,29 +153,59 @@ Please work together to answer this query comprehensively:
 4. Critic: Evaluate the quality and provide feedback"""
         
         # Run the team
-        result = await self.team.run(task=task_message)
+        result = await team.run(task=task_message)
         
         # Extract conversation history
         messages = []
-        async for message in result.messages:
+        for message in result.messages:
             msg_dict = {
                 "source": message.source,
                 "content": message.content if hasattr(message, 'content') else str(message),
             }
             messages.append(msg_dict)
         
-        # Extract final response
+        # Extract final response - get Writer's substantive research answer
         final_response = ""
-        if messages:
-            # Get the last message from Writer or Critic
-            for msg in reversed(messages):
-                if msg.get("source") in ["Writer", "Critic"]:
-                    final_response = msg.get("content", "")
-                    break
         
-        # If no response found, use the last message
+        # Keywords that indicate closing/farewell messages (not actual content)
+        closing_keywords = ["thank you", "best wishes", "take care", "looking forward", 
+                           "pleasure", "welcome", "glad", "hope to", "future collaboration"]
+        
+        if messages:
+            # Get Writer's responses, excluding farewell messages
+            writer_responses = []
+            for msg in reversed(messages):
+                if msg.get("source") == "Writer":
+                    content = msg.get("content", "").strip()
+                    # Check if this is substantive content (not just a closing message)
+                    content_lower = content.lower()
+                    is_closing = any(keyword in content_lower for keyword in closing_keywords)
+                    is_short = len(content) < 200  # Substantive answers are usually longer
+                    
+                    # Skip if it's a short closing message
+                    if not (is_closing and is_short):
+                        writer_responses.append(content)
+            
+            # Use the longest substantive Writer response (likely the main answer)
+            if writer_responses:
+                final_response = max(writer_responses, key=len)
+            
+            # If no Writer response found, fall back to any substantive agent message
+            if not final_response:
+                for msg in reversed(messages):
+                    if msg.get("source") not in ["User", "user"]:
+                        content = msg.get("content", "").strip()
+                        if len(content) > 200:  # Substantive content threshold
+                            final_response = content
+                            break
+        
+        # If still no response found, use the last non-user message
         if not final_response and messages:
-            final_response = messages[-1].get("content", "")
+            for msg in reversed(messages):
+                if msg.get("source") not in ["User", "user"]:
+                    final_response = msg.get("content", "")
+                    if final_response:
+                        break
         
         return self._extract_results(query, messages, final_response)
 
