@@ -15,8 +15,10 @@ sys.path.insert(0, str(project_root))
 import streamlit as st
 import asyncio
 import yaml
+import json
 from datetime import datetime
 from typing import Dict, Any
+from pathlib import Path
 from dotenv import load_dotenv
 
 from src.autogen_orchestrator import AutoGenOrchestrator
@@ -24,6 +26,9 @@ from src.tools.citation_tool import CitationTool
 
 # Load environment variables
 load_dotenv()
+
+# Ensure outputs directory exists
+Path("outputs").mkdir(exist_ok=True)
 
 
 def load_config():
@@ -222,6 +227,52 @@ def calculate_quality_score(result: Dict[str, Any]) -> float:
     score += min(num_messages * 0.1, 2.0)
     
     return min(score, 10.0)  # Cap at 10
+
+
+def save_session_json(query: str, result: Dict[str, Any]) -> str:
+    """Save session data to JSON file in outputs folder."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    def make_serializable(obj):
+        if isinstance(obj, (str, int, float, bool, type(None))):
+            return obj
+        if isinstance(obj, (list, tuple)):
+            return [make_serializable(i) for i in obj]
+        if isinstance(obj, dict):
+            return {k: make_serializable(v) for k, v in obj.items()}
+        return str(obj)
+    
+    # Build formatted conversation history
+    formatted_history = []
+    for i, msg in enumerate(result.get("metadata", {}).get("conversation_history", [])):
+        if isinstance(msg, dict):
+            source = msg.get('source', 'unknown')
+            content = msg.get('content', '')
+        else:
+            source = getattr(msg, 'source', getattr(msg, 'role', 'unknown'))
+            content = getattr(msg, 'content', str(msg))
+        
+        formatted_history.append({
+            "index": i,
+            "role": "assistant" if source in ["Planner", "Researcher", "Writer", "Critic"] else "user",
+            "name": source,
+            "content": str(content) if not isinstance(content, str) else content
+        })
+    
+    session_data = {
+        "query": query,
+        "timestamp": datetime.now().isoformat(),
+        "conversation_history": formatted_history,
+        "response": result.get("response", ""),
+        "metadata": make_serializable(result.get("metadata", {})),
+        "citations": result.get("citations", [])
+    }
+    
+    session_file = f"outputs/streamlit_session_{timestamp}.json"
+    with open(session_file, 'w', encoding='utf-8') as f:
+        json.dump(session_data, f, indent=2, ensure_ascii=False)
+    
+    return session_file
 
 
 def display_response(result: Dict[str, Any]):
@@ -424,9 +475,16 @@ def main():
                 # Process query with status updates
                 result = process_query(query, status_placeholder=status_container)
 
+                # Save session to JSON file
+                try:
+                    session_file = save_session_json(query, result)
+                    st.success(f"✅ Session saved to: {session_file}")
+                except Exception as e:
+                    st.warning(f"Could not save session file: {e}")
+
                 # Add to history
-                st.session_state.history.append({
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                st.session_state.history.insert(0, {
+                    "timestamp": datetime.now().isoformat(),
                     "query": query,
                     "result": result
                 })

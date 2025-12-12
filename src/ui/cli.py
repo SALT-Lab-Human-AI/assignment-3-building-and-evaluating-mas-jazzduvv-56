@@ -13,15 +13,20 @@ sys.path.insert(0, str(project_root))
 import asyncio
 from typing import Dict, Any
 import yaml
+import json
 import logging
 from dotenv import load_dotenv
 from datetime import datetime
+from pathlib import Path
 
 from src.autogen_orchestrator import AutoGenOrchestrator
 from src.tools.citation_tool import CitationTool
 
 # Load environment variables
 load_dotenv()
+
+# Ensure outputs directory exists
+Path("outputs").mkdir(exist_ok=True)
 
 class CLI:
     """
@@ -122,6 +127,13 @@ class CLI:
                     result = self.orchestrator.process_query(query)
                     self.query_count += 1
                     
+                    # Save session to JSON file
+                    try:
+                        session_file = self._save_session_json(query, result)
+                        print(f"\n✅ Session saved to: {session_file}")
+                    except Exception as e:
+                        print(f"\n⚠️  Could not save session file: {e}")
+                    
                     # Display result
                     self._display_result(result)
                     
@@ -220,6 +232,50 @@ class CLI:
             self._display_conversation_summary(result.get("conversation_history", []))
 
         print("=" * 70 + "\n")
+    
+    def _save_session_json(self, query: str, result: Dict[str, Any]) -> str:
+        """Save session data to JSON file in outputs folder."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        def make_serializable(obj):
+            if isinstance(obj, (str, int, float, bool, type(None))):
+                return obj
+            if isinstance(obj, (list, tuple)):
+                return [make_serializable(i) for i in obj]
+            if isinstance(obj, dict):
+                return {k: make_serializable(v) for k, v in obj.items()}
+            return str(obj)
+        
+        formatted_history = []
+        for i, msg in enumerate(result.get("metadata", {}).get("conversation_history", [])):
+            if isinstance(msg, dict):
+                source = msg.get('source', 'unknown')
+                content = msg.get('content', '')
+            else:
+                source = getattr(msg, 'source', getattr(msg, 'role', 'unknown'))
+                content = getattr(msg, 'content', str(msg))
+            
+            formatted_history.append({
+                "index": i,
+                "role": "assistant" if source in ["Planner", "Researcher", "Writer", "Critic"] else "user",
+                "name": source,
+                "content": str(content) if not isinstance(content, str) else content
+            })
+        
+        session_data = {
+            "query": query,
+            "timestamp": datetime.now().isoformat(),
+            "conversation_history": formatted_history,
+            "response": result.get("response", ""),
+            "metadata": make_serializable(result.get("metadata", {})),
+            "citations": self._extract_citations(result)
+        }
+        
+        session_file = f"outputs/cli_session_{timestamp}.json"
+        with open(session_file, 'w', encoding='utf-8') as f:
+            json.dump(session_data, f, indent=2, ensure_ascii=False)
+        
+        return session_file
     
     def _extract_citations(self, result: Dict[str, Any]) -> list:
         """Extract citations/URLs from conversation history and format in APA style."""
