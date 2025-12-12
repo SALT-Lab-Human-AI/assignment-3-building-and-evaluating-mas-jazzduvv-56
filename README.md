@@ -5,7 +5,7 @@ A production-ready multi-agent research assistant specializing in AI-generated s
 
 ## 🎥 Demo Video
 
-**[Watch the system demonstration here]** _(https://drive.google.com/file/d/1yuFxWedbvkrRrgWkObFg3MS3Udvy8k-T/view?usp=sharing)_
+**[Watch the system demonstration here]** _(https://drive.google.com/file/d/16iUh-dKRf-haBjnj_5_yZmCw9Dcxnqkh/view?usp=sharing)_
 
 ## 📋 Overview
 
